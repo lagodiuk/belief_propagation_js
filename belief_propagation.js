@@ -57,8 +57,8 @@ Graph.prototype.inference = function(iterations) {
     }
 }
 
-Graph.prototype.getLabels = function(id) {
-    var node = this.nodes[id];
+Graph.prototype.getLabels = function(nodeId) {
+    var node = this.nodes[nodeId];
     var labelLogProbabilities = node.labelLogProbabilities;
     
     var labelProbabilities = {};
@@ -67,6 +67,11 @@ Graph.prototype.getLabels = function(id) {
         labelProbabilities[label] = Math.exp(labelLogProbabilities[label]);
     }
     return labelProbabilities;
+}
+
+Graph.prototype.setLabelsProbability = function(nodeId, labelsProbabilityDistribution) {
+    var node = this.nodes[nodeId];
+    node.setLabelsProbability(labelsProbabilityDistribution);
 }
 
 
@@ -84,6 +89,36 @@ function Node(id, labels) {
         var label = labels[i];
         //this.labelLogProbabilities[label] = Math.log(1.0 / labels.length);
         this.labelLogProbabilities[label] = Math.log(Math.random());
+    }
+    
+    // normalize
+    var arr = [];
+    for(var i in labels) {
+        arr.push(this.labelLogProbabilities[label]);
+    }
+    var sumLogProbabilities = logOfSum(arr);
+    for(var i in labels) {
+        this.labelLogProbabilities[label] -= sumLogProbabilities;
+    }
+}
+
+Node.prototype.setLabelsProbability = function(labelsProbabilityDistribution) {
+    for(var label in this.labelLogProbabilities) {
+        var probability = labelsProbabilityDistribution[label];
+        if(!probability) {
+            probability = 0.000001;
+        }
+        this.labelLogProbabilities[label] = Math.log(probability);
+    }
+    
+    // normalize
+    var arr = [];
+    for(var label in this.labelLogProbabilities) {
+        arr.push(this.labelLogProbabilities[label]);
+    }
+    var sumLogProbabilities = logOfSum(arr);
+    for(var label in this.labelLogProbabilities) {
+        this.labelLogProbabilities[label] -= sumLogProbabilities;
     }
 }
 
@@ -106,11 +141,11 @@ Node.prototype.calculateBeliefs = function() {
         this.labelLogProbabilities[label] = product;
     }
     
+    // normalize
     var arr = [];
     for(var label in this.labelLogProbabilities) {
         arr.push(this.labelLogProbabilities[label]);
     }
-    
     var sumLogProbabilities = logOfSum(arr);
     for(var label in this.labelLogProbabilities) {
         this.labelLogProbabilities[label] -= sumLogProbabilities;
@@ -193,17 +228,18 @@ Edge.prototype.setNewMessage = function(id, label, value) {
 }
 
 Edge.prototype.refreshMessages = function() {
+    
+    // replace old messages with new messages
     this.logMessagesTo = this.newLogMessagesTo;
     
     for(var id in this.logMessagesTo) {
         
+        // normalize
         var arr = [];
         for(var label in this.logMessagesTo[id]) {
             arr.push(this.logMessagesTo[id][label]);
         }
-        
         var logSum = logOfSum(arr);
-        
         for(var label in this.logMessagesTo[id]) {
             this.logMessagesTo[id][label] -= logSum;
         }
@@ -270,6 +306,8 @@ var graph = new Graph(
                       9: [3, 4, 7, 8],
                       },
                       [1, 2, 3]);
+
+graph.setLabelsProbability(1, {1 : 1});
 
 graph.inference(40);
 for(var id in graph.nodes) {
